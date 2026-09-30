@@ -1,6 +1,6 @@
 # PsiAssist: documentação de discovery
 
-Assistente pessoal para psicólogos clínicos: agenda, prontuário, controle financeiro e um assistente de IA que transforma a gravação da consulta em rascunho de registro clínico.
+Assistente pessoal para psicólogos clínicos: agenda, prontuário, controle financeiro e um assistente de IA que transforma o que o psicólogo informa sobre a consulta (anotações e, opcionalmente, a gravação) em rascunho de registro clínico.
 
 > **Status:** fase de *discovery*. Nada foi implementado. Este repositório reúne a descrição do sistema, os diagramas em código (Mermaid) e as decisões tomadas até aqui. A ideia é que ele sirva de contexto para agentes de desenvolvimento implementarem o sistema seguindo a arquitetura documentada. Veja [AGENTS.md](AGENTS.md).
 
@@ -28,7 +28,7 @@ Assistente pessoal para psicólogos clínicos: agenda, prontuário, controle fin
 
 ### 1.1 Problema e propósito
 
-Psicólogos clínicos que atendem em consultório próprio dividem o tempo entre o atendimento e tarefas administrativas: marcar e remarcar sessões, cobrar pacientes particulares, faturar convênios e, principalmente, manter o registro documental de cada atendimento, que é obrigatório. O PsiAssist centraliza essas tarefas **[F]** e usa IA para reduzir o tempo gasto em documentação: a sessão é gravada e, ao final, o sistema gera um rascunho do registro para o psicólogo revisar **[F]**.
+Psicólogos clínicos que atendem em consultório próprio dividem o tempo entre o atendimento e tarefas administrativas: marcar e remarcar sessões, cobrar pacientes particulares, faturar convênios e, principalmente, manter o registro documental de cada atendimento, que é obrigatório. O PsiAssist centraliza essas tarefas **[F]** e usa IA para reduzir o tempo gasto em documentação: a partir do que o psicólogo informa sobre a sessão, o sistema gera um rascunho do registro para ele revisar **[F]**. A sessão pode ou não ser gravada **[F]**. Quando há gravação, a transcrição complementa as informações do psicólogo **[S]**.
 
 O paciente também usa o sistema: solicita consultas, acompanha os documentos que o psicólogo liberou e recebe orientações relacionadas ao tratamento **[F]**.
 
@@ -39,8 +39,9 @@ O paciente também usa o sistema: solicita consultas, acompanha os documentos qu
 - Agenda do psicólogo, com disponibilidade publicada para os pacientes solicitarem horários **[F]**.
 - Cadastro de pacientes e histórico de atendimentos (prontuário) **[F]**.
 - Controle de pagamentos: sessões particulares e por convênio **[F]**.
-- Gravação da sessão, transcrição e geração de rascunho de documentação por IA **[F]**.
-- Liberação de documentos e orientações ao paciente **[F]**, sempre com aprovação do psicólogo **[S]**. Ver [ajuste A1](#31-ajustes-feitos).
+- Geração de rascunho de documentação por IA a partir das informações do psicólogo (anotações digitadas ou ditadas) **[F]**.
+- Gravação da sessão **opcional**, com transcrição para complementar o rascunho **[F]**.
+- Liberação de documentos e orientações ao paciente **[F]**, gerados a partir do que o psicólogo informa **[F]** e sempre com aprovação dele **[S]**. Ver [ajuste A1](#31-ajustes-feitos).
 - Notificações por e-mail e WhatsApp **[F]**.
 - Integração com operadoras de saúde **[F]**.
 
@@ -57,7 +58,7 @@ Os diagramas cobrem dois níveis do C4 e uma visão comportamental:
 
 - **Contexto (C4 nível 1):** o PsiAssist como uma caixa, suas pessoas e seus sistemas externos.
 - **Containers (C4 nível 2):** aplicações, armazenamento e integrações que compõem o sistema.
-- **Sequência:** a jornada crítica "da sessão gravada ao registro aprovado no prontuário".
+- **Sequência:** a jornada crítica "da sessão ao registro aprovado no prontuário", com gravação opcional.
 - **Estados:** o ciclo de vida de um documento clínico, porque é nele que a regra "a IA só gera rascunho" fica garantida.
 
 Os componentes internos da API (nível 3) ficam para uma próxima fase.
@@ -66,7 +67,7 @@ Os componentes internos da API (nível 3) ficam para uma próxima fase.
 
 | Ator | O que faz | Origem |
 |------|-----------|--------|
-| **Psicólogo(a)** | Cliente da aplicação (um *tenant*). Gerencia agenda e pacientes, grava sessões, revisa e aprova os rascunhos da IA, libera documentos ao paciente. | [F] |
+| **Psicólogo(a)** | Cliente da aplicação (um *tenant*). Gerencia agenda e pacientes, informa as anotações da sessão, grava a sessão quando quiser, revisa e aprova os rascunhos da IA, libera documentos ao paciente. | [F] |
 | **Secretária(o)** | Cuida de agendamentos e do controle financeiro. **Não acessa conteúdo clínico.** | [F] / restrição [S] |
 | **Paciente** | Solicita consultas, vê documentos liberados, recebe lembretes e orientações. | [F] |
 
@@ -76,10 +77,10 @@ Todos os itens desta tabela são sugestões **[S]**. A tecnologia foi deixada em
 
 | Container | Tecnologia sugerida | Responsabilidade |
 |-----------|---------------------|------------------|
-| **App Web do Consultório** | TypeScript, Next.js | Interface do psicólogo e da secretária: agenda, pacientes, prontuário, financeiro, gravação da sessão no navegador e revisão de rascunhos. |
+| **App Web do Consultório** | TypeScript, Next.js | Interface do psicólogo e da secretária: agenda, pacientes, prontuário, financeiro, registro das anotações da sessão, gravação opcional no navegador e revisão de rascunhos. |
 | **Portal do Paciente** | TypeScript, Next.js (PWA) | Solicitar consulta, ver documentos liberados, ver pendências de pagamento. |
 | **API Core** | TypeScript, NestJS, monólito modular | Regras de negócio e controle de acesso. Módulos: Agenda, Pacientes, Prontuário, Consentimentos, Financeiro, Convênios, Documentos, Notificações, Auditoria. |
-| **Worker de Processamento** | TypeScript, jobs assíncronos | Transcrição, geração de rascunho, envio de notificações, geração de lotes de faturamento para convênios. |
+| **Worker de Processamento** | TypeScript, jobs assíncronos | Transcrição (quando há gravação), geração de rascunho, envio de notificações, geração de lotes de faturamento para convênios. |
 | **Fila de jobs** | Redis + BullMQ | Desacopla a API do trabalho lento ou sujeito a falha externa. |
 | **Banco transacional** | PostgreSQL com Row-Level Security por *tenant* | Dados de agenda, pacientes, prontuário, financeiro, consentimentos e trilha de auditoria. |
 | **Armazenamento de arquivos** | Object storage compatível com S3, criptografado | Áudios das sessões (temporários) e documentos gerados. |
@@ -91,15 +92,15 @@ Todos os itens desta tabela são sugestões **[S]**. A tecnologia foi deixada em
 | **Operadoras de saúde** | Faturar sessões de pacientes de convênio. | Padrão **TISS** da ANS. Começa com a geração de lote XML para envio manual no portal da operadora; webservice fica para depois. | [F] integração / [S] forma |
 | **WhatsApp Business Platform** | Lembretes de consulta e avisos de "novo documento disponível". | API oficial, com mensagens por *template* aprovado. **Leva só aviso e link, nunca conteúdo clínico.** | [F] canal / [S] regra |
 | **Provedor de e-mail** | Os mesmos avisos, e canal de fallback do WhatsApp. | API transacional (ex.: SES, SendGrid). Mesma regra: sem conteúdo clínico. | [F] canal / [S] regra |
-| **Provedor de IA** | Transcrever o áudio e gerar o rascunho do registro. | API de speech-to-text + LLM, com contrato de tratamento de dados e sem uso dos dados para treino. | [F] função / [S] fornecedor em aberto (L5) |
+| **Provedor de IA** | Gerar o rascunho do registro a partir das informações do psicólogo e transcrever o áudio quando houver gravação. | API de speech-to-text + LLM, com contrato de tratamento de dados e sem uso dos dados para treino. | [F] função / [S] fornecedor em aberto (L5) |
 | **Provedor de identidade** | Login dos três perfis, MFA obrigatório para psicólogo e secretária. | OIDC. | [S] |
 | **Gateway de pagamento** | Cobrança de pacientes particulares (Pix/cartão). | Opcional. A descrição pede **controle** de pagamento, e não necessariamente cobrança online. | [S] / [L] (L4) |
 
 ### 1.7 Restrições
 
 1. **LGPD, dados sensíveis [F].** Dados de saúde são dados pessoais sensíveis (LGPD, art. 11). Consequências adotadas **[S]**:
-   - consentimento **específico e destacado** do paciente para gravar sessões, registrado com data e revogável a qualquer momento;
-   - minimização: o áudio é temporário e só a evolução aprovada integra o prontuário;
+   - quando a sessão for gravada, consentimento **específico e destacado** do paciente, registrado com data e revogável a qualquer momento;
+   - minimização: a gravação é opcional, o áudio é temporário e só a evolução aprovada integra o prontuário;
    - criptografia em trânsito e em repouso, trilha de auditoria de todo acesso a prontuário;
    - dados hospedados no Brasil sempre que possível, e transferência internacional ao provedor de IA avaliada caso a caso (LGPD, art. 33);
    - Relatório de Impacto à Proteção de Dados (RIPD) antes de ir a produção.
@@ -131,8 +132,10 @@ Cada lacuna tem uma **suposição de trabalho**, usada nos diagramas até que ha
 | L6 | Por quanto tempo o áudio e a transcrição são guardados? | Áudio descartado após a aprovação do registro. Transcrição com a mesma regra. |
 | L7 | Quais operadoras e como cada uma recebe o faturamento (webservice TISS, portal, papel)? | Lote XML TISS para envio manual. |
 | L8 | Quais normas do CFP se aplicam (registro documental, documentos escritos, atendimento online) e qual o prazo mínimo de guarda do prontuário? | Guarda mínima de 5 anos, a confirmar com a norma vigente. |
-| L9 | O que são as "recomendações ao paciente": textos escritos pelo psicólogo, materiais de uma biblioteca, ou mensagens geradas pela IA? | Conteúdo criado ou escolhido pelo psicólogo. A IA pode sugerir, mas nada é enviado sem aprovação (I1). |
+| L9 | ~~De onde vêm as "recomendações ao paciente"?~~ **Respondida [F]:** a IA gera o conteúdo com base no que o psicólogo informa. Continua em aberto: quais formatos (texto, PDF, material de apoio) e se haverá uma biblioteca de materiais. | Texto gerado pela IA a partir das informações do psicólogo e aprovado por ele antes do envio (I1). |
 | L10 | Modelo de negócio: assinatura por psicólogo? Limite de minutos de gravação? | Não afeta a arquitetura do MVP. Fica registrado. |
+| L11 | Gravar é uma escolha a cada sessão ou uma configuração do psicólogo ou do paciente? | Escolha a cada sessão, desligada por padrão, e só disponível para pacientes com consentimento vigente. |
+| L12 | Quando há gravação e anotações, como a IA combina as duas? O que prevalece em caso de conflito? | A IA usa as duas fontes. As anotações do psicólogo prevalecem, e trechos que vêm só da transcrição aparecem marcados para revisão. |
 
 ---
 
@@ -158,11 +161,11 @@ flowchart TB
     ops["<b>Operadoras de saúde</b><br/>[Sistemas externos]<br/>Padrão TISS"]
     idp["<b>Provedor de identidade</b><br/>[Sistema externo]<br/>OIDC + MFA"]
 
-    psi -- "Gerencia agenda, grava sessões,<br/>aprova registros" --> psiassist
+    psi -- "Gerencia agenda, informa anotações,<br/>grava sessões (opcional),<br/>aprova registros" --> psiassist
     sec -- "Agenda consultas,<br/>registra pagamentos" --> psiassist
     pac -- "Solicita horários,<br/>consulta documentos" --> psiassist
 
-    psiassist -- "Envia áudio e texto<br/>para transcrever e resumir" --> ia
+    psiassist -- "Envia anotações e, se houver,<br/>áudio para gerar o rascunho" --> ia
     psiassist -- "Envia avisos<br/>(sem conteúdo clínico)" --> wpp
     psiassist -- "Envia avisos<br/>(sem conteúdo clínico)" --> mail
     psiassist -- "Envia lotes de<br/>faturamento TISS" --> ops
@@ -189,10 +192,10 @@ flowchart LR
 
     subgraph psiassist["PsiAssist [limite do sistema]"]
         direction TB
-        web["<b>App Web do Consultório</b><br/>[Next.js]<br/>Agenda, prontuário, financeiro,<br/>gravação e revisão de rascunhos"]
+        web["<b>App Web do Consultório</b><br/>[Next.js]<br/>Agenda, prontuário, financeiro,<br/>anotações, gravação opcional<br/>e revisão de rascunhos"]
         portal["<b>Portal do Paciente</b><br/>[Next.js PWA]<br/>Solicitação de consultas,<br/>documentos liberados"]
         api["<b>API Core</b><br/>[NestJS, monólito modular]<br/>Regras de negócio, RBAC,<br/>consentimentos, auditoria"]
-        worker["<b>Worker de Processamento</b><br/>[TypeScript]<br/>Transcrição, rascunho,<br/>notificações, lotes TISS"]
+        worker["<b>Worker de Processamento</b><br/>[TypeScript]<br/>Rascunho, transcrição opcional,<br/>notificações, lotes TISS"]
         queue[("<b>Fila de jobs</b><br/>[Redis + BullMQ]")]
         db[("<b>Banco transacional</b><br/>[PostgreSQL + RLS]<br/>Isolado por tenant")]
         storage[("<b>Armazenamento de arquivos</b><br/>[Object storage S3, criptografado]<br/>Áudios temporários, documentos")]
@@ -210,7 +213,7 @@ flowchart LR
 
     web -- "JSON/HTTPS" --> api
     portal -- "JSON/HTTPS" --> api
-    web -- "Upload do áudio<br/>(URL pré-assinada)" --> storage
+    web -- "Upload do áudio, se gravado<br/>(URL pré-assinada)" --> storage
 
     api -- "Lê/grava (SQL)" --> db
     api -- "Enfileira jobs" --> queue
@@ -220,7 +223,7 @@ flowchart LR
     queue -- "Entrega jobs" --> worker
     worker -- "Lê/grava (SQL)" --> db
     worker -- "Lê áudio,<br/>grava documentos" --> storage
-    worker -- "Transcreve e gera rascunho<br/>(HTTPS)" --> ia
+    worker -- "Gera rascunho e transcreve<br/>(HTTPS)" --> ia
     worker -- "Envia aviso + link" --> wpp
     worker -- "Envia aviso + link" --> mail
     worker -- "Gera lote XML TISS" --> ops
@@ -241,9 +244,9 @@ flowchart LR
 - O **App Web** e o **Portal** só falam com a API. O único acesso direto ao storage é o upload por URL pré-assinada, que expira e não dá acesso de leitura.
 - O **Portal do Paciente** usa os mesmos endpoints da API, mas com um papel que só alcança os documentos com status *Liberado ao paciente*.
 
-### 2.3 Sequência: da sessão gravada ao registro aprovado
+### 2.3 Sequência: da sessão ao registro aprovado
 
-Esta é a jornada crítica porque reúne os maiores riscos do sistema: consentimento (LGPD), falha de um fornecedor externo (IA), duplicação de processamento e a regra de que nada gerado pela IA vira registro sem o psicólogo.
+Esta é a jornada crítica porque reúne os maiores riscos do sistema: consentimento quando há gravação (LGPD), falha de um fornecedor externo (IA), duplicação de processamento e a regra de que nada gerado pela IA vira registro sem o psicólogo. A entrada principal são as anotações do psicólogo. A gravação é um bloco opcional.
 
 ```mermaid
 sequenceDiagram
@@ -258,47 +261,55 @@ sequenceDiagram
     participant IA as Provedor de IA (externo)
 
     P->>W: Inicia a sessão do paciente
-    W->>A: Solicita início de gravação
-    A->>D: Verifica consentimento de gravação vigente
-    alt Sem consentimento válido
-        A-->>W: Gravação não permitida
-        W-->>P: Sessão segue sem gravação, registro manual
-    else Consentimento válido
-        A->>S: Gera URL de upload pré-assinada
-        A-->>W: URL e id da gravação
-        P->>W: Grava a sessão
-        W->>S: Envia áudio em partes (HTTPS)
-        W->>A: Conclui gravação
-        A->>D: Status da sessão = AGUARDANDO_PROCESSAMENTO
-        A->>Q: Enfileira job com chave sessaoId + versão
-        Note over A,Q: Idempotência: a chave é única.<br/>Reenviar o mesmo job não cria um segundo rascunho.
-        A-->>W: Gravação recebida
-        Q->>K: Entrega o job
-        K->>S: Lê o áudio
-        K->>IA: Transcreve o áudio (timeout a definir)
-        alt IA responde
-            IA-->>K: Transcrição
-            K->>IA: Gera rascunho com o modelo de registro do psicólogo
-            IA-->>K: Rascunho
-            K->>D: Grava rascunho (upsert pela chave), status = RASCUNHO_PRONTO
-            K->>A: Evento rascunho pronto
-            A-->>W: Notificação no app
-        else Timeout ou erro do provedor
-            K->>Q: Reagenda com backoff (nº de tentativas a definir)
-            Note over K,Q: Esgotadas as tentativas: status = FALHA_PROCESSAMENTO.<br/>Áudio mantido, psicólogo avisado,<br/>pode reprocessar ou escrever manualmente.
+    opt Psicólogo opta por gravar
+        W->>A: Solicita início de gravação
+        A->>D: Verifica consentimento de gravação vigente
+        alt Consentimento válido
+            A->>S: Gera URL de upload pré-assinada
+            A-->>W: URL e id da gravação
+            P->>W: Grava a sessão
+            W->>S: Envia áudio em partes (HTTPS)
+        else Sem consentimento válido
+            A-->>W: Gravação não permitida
+            W-->>P: Sessão segue só com anotações
         end
-        P->>W: Revisa e edita o rascunho
-        W->>A: Aprova o registro
-        A->>D: Grava registro APROVADO (versão imutável) + auditoria
-        A->>S: Agenda descarte do áudio (política de retenção, L6)
-        A-->>W: Registro salvo no prontuário
     end
+    P->>W: Informa as anotações da sessão (digitadas ou ditadas)
+    W->>A: Pede rascunho (anotações + gravação, se houver)
+    A->>D: Salva anotações, status da sessão = AGUARDANDO_PROCESSAMENTO
+    A->>Q: Enfileira job com chave sessaoId + versão
+    Note over A,Q: Idempotência: a chave é única.<br/>Reenviar o mesmo job não cria um segundo rascunho.
+    A-->>W: Pedido recebido
+    Q->>K: Entrega o job
+    alt IA responde
+        opt Há gravação
+            K->>S: Lê o áudio
+            K->>IA: Transcreve o áudio (timeout a definir)
+            IA-->>K: Transcrição
+        end
+        K->>IA: Gera rascunho das anotações (+ transcrição) no modelo do psicólogo
+        IA-->>K: Rascunho
+        K->>D: Grava rascunho (upsert pela chave), status = RASCUNHO_PRONTO
+        K->>A: Evento rascunho pronto
+        A-->>W: Notificação no app
+    else Timeout ou erro do provedor (transcrição ou geração)
+        K->>Q: Reagenda com backoff (nº de tentativas a definir)
+        Note over K,Q: Esgotadas as tentativas: status = FALHA_PROCESSAMENTO.<br/>Anotações e áudio mantidos, psicólogo avisado,<br/>pode reprocessar ou escrever manualmente.
+    end
+    P->>W: Revisa e edita o rascunho
+    W->>A: Aprova o registro
+    A->>D: Grava registro APROVADO (versão imutável) + auditoria
+    opt Havia gravação
+        A->>S: Agenda descarte do áudio (política de retenção, L6)
+    end
+    A-->>W: Registro salvo no prontuário
 ```
 
 **Pontos de revisão desta sequência:**
 
-- **Idempotência (passo do enfileiramento e da gravação do rascunho):** a chave `sessaoId + versão` garante que um retry da fila ou um clique duplo em "concluir" não gera dois rascunhos nem cobra duas vezes o provedor de IA.
-- **Falha parcial:** se a IA cair, a sessão não se perde. O áudio fica guardado e o psicólogo sempre tem a saída manual.
+- **Idempotência (passo do enfileiramento e da gravação do rascunho):** a chave `sessaoId + versão` garante que um retry da fila ou um clique duplo em "gerar rascunho" não gera dois rascunhos nem cobra duas vezes o provedor de IA.
+- **Falha parcial:** se a IA cair, a sessão não se perde. Anotações e áudio (se houver) ficam guardados e o psicólogo sempre tem a saída manual.
+- **Sem gravação é o caminho padrão:** o fluxo funciona inteiro sem o bloco `opt` de gravação. Só a transcrição e o descarte do áudio deixam de acontecer.
 - **Tempos:** timeout e número de tentativas estão marcados como "a definir" de propósito, porque dependem do fornecedor escolhido (L5).
 - **Observabilidade mínima:** um id de correlação por sessão atravessando API, fila e worker, com log dos pontos de falha e sem conteúdo clínico nos logs.
 
@@ -315,7 +326,7 @@ stateDiagram-v2
     state "Liberado ao paciente" as Liberado
     state "Descartado" as Descartado
 
-    [*] --> EmProcessamento : gravação concluída
+    [*] --> EmProcessamento : psicólogo pede rascunho à IA
     [*] --> Rascunho : psicólogo escreve manualmente
     EmProcessamento --> Rascunho : IA gera rascunho
     EmProcessamento --> Falha : tentativas esgotadas
@@ -341,7 +352,7 @@ Os diagramas e a estrutura acima foram gerados com apoio de GenAI a partir de um
 | # | O que a descrição original dizia ou o que o modelo inferiu | Ajuste | Por quê |
 |---|------------------------------------------------------------|--------|---------|
 | A1 | "O sistema poderá interagir com os usuários para que recebam recomendações." Lido ao pé da letra, vira um chatbot de IA falando com o paciente. | A IA **não fala com o paciente**. Ela sugere e o psicólogo aprova (invariante I1). | Orientação clínica automática sem supervisão é risco ético e clínico e responsabilidade do profissional. |
-| A2 | "Gravar as consultas." | Gravação só com **consentimento específico e revogável**. Sem ele, o fluxo segue manual (primeiro `alt` da sequência). | LGPD, art. 11: dado sensível exige base legal específica. |
+| A2 | "Gravar as consultas." | Gravação **opcional** e só com **consentimento específico e revogável**. Sem ele, a sessão segue só com as anotações (bloco `opt` da sequência). | LGPD, art. 11: dado sensível exige base legal específica. |
 | A3 | "Gerar a documentação após a consulta para guardar como histórico." | A IA gera um **rascunho**. O prontuário só recebe a versão aprovada, que fica imutável (diagrama 2.4). | O registro documental é dever e responsabilidade do psicólogo, não do sistema. |
 | A4 | "Secretária cuida de agendamento e financeiro." | Regra explícita: **sem acesso a conteúdo clínico**. | Sigilo profissional. Sem essa regra, um agente implementaria "secretária = admin". |
 | A5 | "Integração com e-mail e WhatsApp." | Os canais levam **só aviso + link autenticado** (I3). | Minimização de dados: WhatsApp e e-mail ficam fora do controle do sistema. |
@@ -349,6 +360,7 @@ Os diagramas e a estrutura acima foram gerados com apoio de GenAI a partir de um
 | A7 | "Cada psicólogo é um cliente." | Multi-tenant com **isolamento no banco (RLS)**, não só no código. | Um único `WHERE` esquecido vazaria dado de saúde entre clientes. |
 | A8 | Notação: o Mermaid tem sintaxe C4 própria (`C4Context`, `C4Container`). | Usar `flowchart` com a convenção visual do C4 (tipo entre colchetes, externos tracejados). | A sintaxe C4 do Mermaid ainda é experimental e dá pouco controle sobre o layout. O `flowchart` renderiza de forma estável no GitHub. |
 | A9 | Chamadas à IA feitas pela própria API durante a requisição. | Processamento **assíncrono** via fila e Worker, com chave de idempotência. | Transcrever uma sessão de 50 minutos não cabe numa requisição HTTP, e o provedor externo pode falhar. |
+| A10 | A primeira versão supôs que o rascunho vinha **sempre da gravação** (gravar → transcrever → resumir). | Corrigido após validação com o dono do produto: a entrada principal é **o que o psicólogo informa**. A gravação é opcional e só complementa. A sequência, o diagrama de estados e as lacunas L9, L11 e L12 foram atualizados. | A descrição original juntava "gravar" e "gerar documentação" na mesma frase, e o modelo leu isso como uma dependência. |
 
 ### 3.2 Decisões arquiteturais propostas
 
@@ -369,7 +381,7 @@ Todas são propostas **[S]** e viram ADRs formais quando aceitas.
 
 Esta documentação já dá a um agente o **porquê** (escopo, restrições, invariantes) e o **formato geral** (containers, jornada crítica, ciclo de vida do documento). Ainda faltam os itens abaixo. Sem eles, o agente preencheria as lacunas com suposições próprias:
 
-1. **Respostas às lacunas L1 a L10.** Em especial provedor de IA (L5), retenção (L6) e normas do CFP (L8), que mudam o desenho.
+1. **Respostas às lacunas L1 a L12.** Em especial provedor de IA (L5), retenção (L6) e normas do CFP (L8), que mudam o desenho.
 2. **ADRs aceitas** para D1 a D6, com status, contexto e consequências.
 3. **Modelo de domínio e glossário:** entidades (Paciente, Sessão, Registro, Documento, Consentimento, Pagamento, Guia TISS), atributos, relacionamentos e o que significa cada termo.
 4. **Matriz de permissões completa:** papel × recurso × ação, incluindo o que o paciente vê de cada documento.
